@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>品牌管理</title>
+    <!--引入样式表资源-->
+    <link rel="stylesheet" href="../css/elementui.css">
+</head>
+<body>
+<div id="app">
+    <!--表单一般是放在表格的上方的-->
+    <el-form :inline="true">
+        <el-form-item label="品牌名称"> <!--一个表单项  label是标签-->
+            <!--placeholder是输入框占位文本 ,v-model="searchMap.name"用来双向绑定，首字母和名称就绑定了-->
+            <el-input placeholder="品牌名称" v-model="searchMap.name"></el-input>
+        </el-form-item>
+        <el-form-item label="品牌首字母"> <!--表单项  label是标签-->
+            <el-input placeholder="品牌首字母"  v-model="searchMap.letter"></el-input>
+        </el-form-item>
+        <!--type决定样式 ，click代表单击事件  表单写完需要去下面定义查询变量-->
+        <el-button type="primary" @click="fetchData">查询</el-button>
+        <el-button type="primary"  @click="pojo={},formVisible=true">新增</el-button><!--添加一个可以弹出的窗口
+        pojo={}可以让弹出的框口等于空的对象，从而保证里面没有上次操作的数据-->
+    </el-form>
+<!--现在数据已经加载过来了，现在需要使用表格来展现这个列表数据。从 ElementUI官网文档中复制组件table数据在进行修改-->
+    <el-table
+            :data="tableData"
+            border
+            style="width: 100%">
+        <el-table-column
+                prop="id"
+                label="ID"
+                width="180">
+        </el-table-column>
+        <el-table-column
+                prop="name"
+                label="名称">
+        </el-table-column>
+        <el-table-column
+                prop="letter"
+                label="首字母"
+                width="180">
+        </el-table-column>
+        <el-table-column
+                label="图片"
+                width="180">
+            <!--需要使用模板列故需要去掉prop="image"的属性 slot-scope属性用来指定范围变量
+            slot-scope属性是可以自己定义的，scope相当于把一条的数据给带过来了-->
+            <template slot-scope="scope">
+                <!--src是写图片的地址的，让其变成一个变量，现在需要找到图片那一列的数据
+                row属性代表行对象-->
+                <img :src="scope.row.image">
+            </template>
+            <!--添加模板列-->
+        <el-table-column
+                label="操作"
+                width="180">
+            <template slot-scope="scope">
+               <!--添加按钮和点击事件,肯定要等于一个方法，方法中肯定要 传递id从而确定修改哪一条
+               scope.row.id把这一行的id得到然后传给这个方法
+               type="text"按钮就变成了没有边框和背景色的文字按钮
+               size="small"添加之后按钮就会变得更小这样比较适合于放到表格中去操作-->
+                <el-button type="text" @click="edit(scope.row.id)" size="small">修改</el-button>
+                <!--找到表格，添加删除按钮-->
+                <el-button type="text" @click="dele(scope.row.id)" size="small">删除</el-button>
+            </template>
+        </el-table-column>
+    </el-table>
+
+    <!--带@的都是事件  fetchData是当前页面的一个用于加载数据的方法，它的大小、当前页更改就就需要从后端重新抓取数据
+           fetchData是向后端请求数据的一个方法，现在这个方法还没有可以在下面Vue里面加上
+            :current-page代表从currentPage4中只取值，当当前值发生变更它并不会去更改这个变量值，这样就变成了单向的关系，
+            这里需要让其变成双向的，一旦点击分页控件应该去更改这个变量值故需要写成:current-page.sync
+            currentPage这个属性需在 Vue 中定义
+            :page-size定义一个变量叫size\
+            layout代表控件中包含什么东西，包含总记录数就需要有total,sizes代表有每页记录数的列表
+            有上一页下一页的跳转需要有 prev和next,想要显示每一个页的页码使用pager,想让其有页面跳转的功能jumper
+            :total代表总记录数-->
+    <el-pagination
+            @size-change="fetchData"
+            @current-change="fetchData"
+            :current-page.sync="currentPage"
+            :page-sizes="[10, 20, 30, 40]"
+            :page-size="size"
+            layout="total, sizes, prev, pager, next, jumper"
+            :total="total">
+    </el-pagination>
+    <el-dialog
+            title="品牌编辑"
+            :visible.sync="formVisible">
+        <el-form label-width="80px"><!--inline=true代表所有表单项都排成一行，指定标签的宽度label-width若未指定标签默认占一行-->
+            <el-form-item label="品牌名称"> <!--一个表单项  label是标签-->
+                <el-input placeholder="品牌名称" v-model="pojo.name"></el-input>
+            </el-form-item>
+            <el-form-item label="品牌首字母">
+                <el-input placeholder="品牌首字母"  v-model="pojo.letter"></el-input>
+            </el-form-item>
+            <el-form-item label="品牌图片">
+                <el-input placeholder="品牌首字母"  v-model="pojo.image"></el-input>
+            </el-form-item>
+            <el-form-item label="品牌排序">
+                <el-input placeholder="品牌首字母"  v-model="pojo.seq"></el-input>
+            </el-form-item>
+            <el-form-item>
+                <el-button @click="save()">保存</el-button>
+                <el-button @click="formVisible = false">关闭</el-button>
+            </el-form-item>
+        </el-form>
+    </el-dialog>
+</div>
+<!--引入js-->
+<script src="../js/vue.js"></script>
+<script src="../js/elementui.js"></script>
+<script src="../js/axios.js"></script>
+
+<!--写脚本访问后端的地址返回列表数据,会用到 vue 的知识-->
+<script>
+    /*实例化一个 Vue 对象*/
+    new Vue({
+        /*el定义它的作用域，这时必须body中要加一个id=app*/
+        el:"#app" ,/*表明现在编写的js的代码是在body id=app 这个区域中有效的*/
+        data(){ //data是数据，也就是我们要定义在页面上的数据属性
+            return {
+                tableData:[],  /*代表列表数据*/
+                currentPage:1, //代表当前页
+                size:10,
+                total:10, //先给一个值为10，查询这个数之后再去更改这个值，只有更改这个值这个页数才能发生变更
+                searchMap:{}, //定义查询对象
+                formVisible:false, //窗口默认是关闭的
+                pojo:{}
+            }
+        },
+        created(){
+            //在页面加载的时候去调用这个方法，在更改了页码和合计大小的时候去调用这个方法
+            this.fetchData()
+        },
+        methods:{
+            //修改fetchData方法与后端进行交互实现分页查询
+            fetchData(){
+                //SE6以前的写法，page中的值要是变量需要写两个+两个‘去拼接
+              //  axios.get('/brand/findPage.do?page='+this.currentPage+'&size='+this.size)
+                //使用 SE6 模板字符串的写法
+                //双向绑定之后需要改变 fetchData 里面的内容，实现条件查询+分页查询 后面还有查询对象叫searchMap
+                //注意应用变量的时候不要忘记加 this 否则就不会找到这个变量
+                //console.log(this.searchMap)
+                axios.post(`/brand/findPage.do?page=${this.currentPage}&size=${this.size}`,this.searchMap).then(response=>{
+                    //取到返回值
+                    //返回的结果是分页结果集，它有两个属性：rows(返回的是个数组)、totalp(总记录数)
+                    this.tableData=response.data.rows;//每页的结果集
+                    this.tableData=response.data.total;
+                })
+            },
+            /*表单写完之后需要编写一个方法和后端进行交互*/
+            save(){
+                /*调用axios.post方法，因要进行post提交  pojo就是当前编译的实体
+                axios.post(`/brand/add.do`,this.pojo).then(response=>{
+                修改add让它其通用,实现通过id能自动改变的效果*/
+                axios.post(`/brand/${this.pojo.id==null?'add':'update'}.do`,this.pojo).then(response=>{
+                    /*回调之后要刷新数据并且关闭窗口*/
+                    this.formVisible=false;//关闭窗口
+                    this.fetchData();//调用查询，新增数据也会展示
+                })
+            },
+            //下面代码完成的是数据读取的操作，就是把这个数据加载过来了，点击保存按钮仍然会调用save方法
+            //所以需要让save中的代码变得更智能，因为不管增加、修改都会执行save方法，最简洁的方法把add换掉，
+            //让它能够判断，新增id为空，修改id必须是存在的，这里可通过三元运算符来判断id是否存在，存在就是update,
+            //不存在就是add
+            edit(id){
+                this.formVisible=true;//打开窗口
+                //加载数据 id=这个时候就调后端的方法
+                axios.get(`/brand/findById?id=${id}`).then(response=>{
+                    /*然后回调之后，只需要修改pojo变量即可*/
+                    this.pojo=response.data
+                })
+            },
+            dele(id){
+                /*弹出消息提示，询问用户是否要删除，使用ElementUI提供的组件MessageBox 弹框*/
+
+            }
+        }
+    })
+</script>
+</body>
+</html>
